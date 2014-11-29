@@ -1,4 +1,5 @@
 /*jslint browser: true*/
+/*global d3*/
 /*global Game*/
 (function () {
   'use strict';
@@ -25,7 +26,7 @@
     return h + 'h ' + m + 'm ' + s + 's';
   };
 
-  var summary = function(game, time) {
+  var summary = function (game, time) {
     var hl = document.body.appendChild(document.createElement('h1'));
     hl.innerText = 'Summary after ' + formatTime(time);
     var block = document.body.appendChild(document.createElement('ul'));
@@ -39,6 +40,33 @@
       elem.innerText = w.name + ' - Hired: ' + w.state.hired;
       elem.setAttribute('style', 'color: blue;');
     });
+  };
+
+  var d3TimeGraph = function (time_points) {
+    var idle_points = [],
+        i,
+        width = 2000,
+        height = 480;
+    for (i = 1; i < time_points.length; i++) {
+      idle_points.push(time_points[i] - time_points[i - 1]);
+    }
+    var svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g"),
+    y = d3.scale.linear()
+        .domain([0, d3.max(idle_points)]).range([0, height]),
+    barWidth = width / idle_points.length;
+
+    var bar = svg.selectAll("g")
+      .data(idle_points)
+      .enter().append("g")
+      .attr("transform", function(d, i) {
+        return "translate(" + i * barWidth + ", 0)"; });
+
+    bar.append("rect")
+      .attr("width", barWidth - 1)
+      .attr("height", y);
   };
 
   var findBestDeal = function (arr, propCost, propValue) {
@@ -74,7 +102,8 @@
     return null;
   };
 
-  var time = 0;
+  var time = 0,
+      time_points = [];
   var step = function () {
     time++;
     var i;
@@ -96,28 +125,32 @@
       if (bestDealResearch.research(game.lab) > 0) {
         log('[' + formatTime(time) + '] ' + bestDealResearch.key,
             'red');
+        time_points.push(time);
       }
     }
     if (bestDealUpgrades !== null) {
       if (bestDealUpgrades.buy(game.lab, game.allObjects) > 0) {
         log('[' + formatTime(time) + '] ' + bestDealUpgrades.key,
             'green');
+        time_points.push(time);
       }
     }
     if (bestDealWorkers !== null) {
       if (bestDealWorkers.hire(game.lab) > 0) {
         log('[' + formatTime(time) + '] ' + bestDealWorkers.key,
             'blue');
+        time_points.push(time);
       }
     }
   };
   
   var i;
-  for (i = 0; i < 100000; i++) {
-    step();
-  }
-  //while (game.research[8].state.level < 20) {
+  //for (i = 0; i < 100000; i++) {
   //  step();
   //}
+  while (game.research[8].state.level < 20) {
+    step();
+  }
   summary(game, time);
+  d3TimeGraph(time_points);
 }()); 
